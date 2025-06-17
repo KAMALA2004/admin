@@ -985,8 +985,7 @@ def post_content_to_platform(platform, caption, image, image_model):
         return False, f"Error posting to {platform}: {str(e)}"
 
 def check_environment_variables():
-    """Check and display the status of environment variables"""
-    st.subheader("🔧 API Configuration Status")
+  
     
     # Twitter variables
     twitter_vars = {
