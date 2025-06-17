@@ -650,28 +650,41 @@ def generate_combined_content(prompt, genre, content_type, platforms, temperatur
 def admin_dashboard():
     """Admin Panel Dashboard"""
     st.header("🔧 Admin Dashboard")
-    
+
+    # 🔧 API Configuration Check
+    st.subheader("🔐 API Configuration Status")
+    check_environment_variables()
+
+    # 🧠 Default Model Selection for Users
+    st.subheader("🧠 Default Image Generation Model for Users")
+    default_model = st.selectbox(
+        "Select Default Image Generation Model",
+        ["gemini", "dalle"],
+        format_func=lambda x: "Gemini" if x == "gemini" else "DALL-E 3",
+        help="Sets the model users will use in the User Panel"
+    )
+    st.session_state.default_image_model = default_model
+
     # Model Overview
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         total_models = len(st.session_state.ai_models)
         active_models = sum(1 for model in st.session_state.ai_models.values() if model["status"] == "active")
         st.metric("Total Models", total_models)
         st.metric("Active Models", active_models)
-    
+
     with col2:
         total_usage = sum(model["usage_count"] for model in st.session_state.ai_models.values())
         st.metric("Total Usage", total_usage)
-    
+
     with col3:
         avg_accuracy = sum(model["accuracy"] for model in st.session_state.ai_models.values()) / len(st.session_state.ai_models)
         st.metric("Avg Accuracy", f"{avg_accuracy:.2%}")
-    
+
     # Model Management
     st.subheader("🤖 AI Model Management")
-    
-    # Create a DataFrame for better display
+
     model_data = []
     for key, model in st.session_state.ai_models.items():
         model_data.append({
@@ -682,15 +695,13 @@ def admin_dashboard():
             "Engagement Rate": f"{model['engagement_rate']:.2%}",
             "Model Type": model["model"]
         })
-    
+
     df = pd.DataFrame(model_data)
     st.dataframe(df, use_container_width=True)
-    
-    # Model Controls
+
     st.subheader("Model Controls")
-    
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.write("**Activate/Deactivate Models**")
         for key, model in st.session_state.ai_models.items():
@@ -704,45 +715,36 @@ def admin_dashboard():
             if new_status != current_status:
                 st.session_state.ai_models[key]["status"] = new_status
                 st.success(f"Updated {model['name']} status to {new_status}")
-    
+
     with col2:
         st.write("**Model Performance Metrics**")
-        
-        # Accuracy Chart
         accuracy_data = {
             "Model": [model["name"] for model in st.session_state.ai_models.values()],
             "Accuracy": [model["accuracy"] for model in st.session_state.ai_models.values()]
         }
         accuracy_df = pd.DataFrame(accuracy_data)
-        
-        fig = px.bar(accuracy_df, x="Model", y="Accuracy", 
-                    title="Model Accuracy Comparison",
-                    color="Accuracy", color_continuous_scale="viridis")
+        fig = px.bar(accuracy_df, x="Model", y="Accuracy", title="Model Accuracy Comparison",
+                     color="Accuracy", color_continuous_scale="viridis")
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
-    
-    # Usage Analytics
+
     st.subheader("📊 Usage Analytics")
-    
+
     if st.session_state.model_usage_history:
         usage_df = pd.DataFrame(st.session_state.model_usage_history)
         usage_df['date'] = pd.to_datetime(usage_df['timestamp']).dt.date
-        
-        # Daily usage chart
         daily_usage = usage_df.groupby(['date', 'agent']).size().reset_index(name='count')
-        
+
         fig = px.line(daily_usage, x='date', y='count', color='agent',
-                     title="Daily Model Usage",
-                     labels={'count': 'Usage Count', 'date': 'Date'})
+                      title="Daily Model Usage", labels={'count': 'Usage Count', 'date': 'Date'})
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Genre distribution
+
         genre_dist = usage_df['genre'].value_counts()
-        fig = px.pie(values=genre_dist.values, names=genre_dist.index,
-                    title="Content Genre Distribution")
+        fig = px.pie(values=genre_dist.values, names=genre_dist.index, title="Content Genre Distribution")
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No usage data available yet.")
+
 
 def cleanup_files(image_path):
     """Clean up temporary image files"""
@@ -1062,11 +1064,11 @@ def check_environment_variables():
 def user_dashboard():
     """User Panel Dashboard"""
     st.header("👤 User Dashboard")
-    
+
     st.subheader("🔗 Platform Integration")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.write("**Twitter (X) Integration**")
         if st.session_state.oauth_connected['twitter']:
@@ -1077,10 +1079,9 @@ def user_dashboard():
         else:
             st.warning("❌ Not connected to Twitter")
             if st.button("Connect Twitter"):
-                # Simulate OAuth connection
                 st.session_state.oauth_connected['twitter'] = True
                 st.success("Connected to Twitter!")
-    
+
     with col2:
         st.write("**LinkedIn Integration**")
         if st.session_state.oauth_connected['linkedin']:
@@ -1091,49 +1092,37 @@ def user_dashboard():
         else:
             st.warning("❌ Not connected to LinkedIn")
             if st.button("Connect LinkedIn"):
-                # Simulate OAuth connection
                 st.session_state.oauth_connected['linkedin'] = True
                 st.success("Connected to LinkedIn!")
-    
-    # Add environment variables check
-    if st.button("🔧 Check API Configuration"):
-        check_environment_variables()
-    
-    # Content Creation Interface
+
     st.subheader("🎨 Content Creation")
-    
-    # User input section
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         prompt = st.text_area(
             "Enter your product description or prompt",
             placeholder="Example: A red sandalwood-hued cord set placed near indoor plants in filtered daylight.",
             height=100
         )
-        
+
         genre = st.selectbox("Select Genre", CONTENT_GENRES)
-        
+
         content_type = st.selectbox("Select Content Type", CONTENT_TYPES)
-        
-        image_model = st.selectbox(
-            "Select Image Generation Model",
-            ["gemini", "dalle"],
-            format_func=lambda x: "Gemini" if x == "gemini" else "DALL-E 3",
-            help="Choose between Gemini and DALL-E 3 for image generation"
-        )
-    
+
+        # Use image model from admin setting
+        image_model = st.session_state.get("default_image_model", "gemini")
+
     with col2:
         temperature = st.slider("Creativity Level (Temperature)", 0.1, 1.0, 0.8, 0.1,
                               help="Higher values = more creative, Lower values = more focused")
-        
+
         platforms = st.multiselect(
             "Select Platforms",
             ["Twitter", "LinkedIn", "Instagram"],
             default=["Twitter", "LinkedIn"]
         )
-        
-        # Content generation type
+
         generation_type = st.radio(
             "Select Generation Type",
             ["Combined (Image + Caption)", "Caption Only", "Image Only"],
@@ -1428,9 +1417,13 @@ def main():
     )
     
     initialize_session_state()
+
+    # ✅ Ensure default image model is always initialized
+    if 'default_image_model' not in st.session_state:
+        st.session_state.default_image_model = "gemini"
     
     st.title("🔧 Social Media Agent - Admin & User Panel")
-    
+
     # Create tabs for Admin and User panels
     admin_tab, user_tab = st.tabs(["🔧 Admin Panel", "👤 User Panel"])
     
@@ -1448,6 +1441,7 @@ def main():
     
     with user_tab:
         user_dashboard()
+
 
 # Firebase Authentication Functions
 def sign_up_with_email_and_password(email, password, username=None, return_secure_token=True):
